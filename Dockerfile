@@ -1,5 +1,5 @@
 # Prepare cargo chef
-FROM --platform=$BUILDPLATFORM rust:1.71-bullseye AS chef
+FROM --platform=$BUILDPLATFORM rust:1.74-bullseye AS chef
 RUN cargo install cargo-chef 
 WORKDIR /app
 
@@ -18,7 +18,13 @@ RUN cargo build --release --offline
 
 # Runtime
 FROM debian:bullseye-slim AS runtime
+# Install and update certificates
+RUN apt-get update && apt-get install -y ca-certificates
+
 WORKDIR /app
 
-COPY --from=builder /app/target/release/dsmr dsmr
-ENTRYPOINT ["./dsmr"]
+EXPOSE 8080
+
+COPY --from=builder /app/target/release/revs3 revs3
+
+ENTRYPOINT ["./revs3"]
