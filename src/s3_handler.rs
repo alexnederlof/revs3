@@ -22,7 +22,7 @@ pub async fn s3(
     let mut req_builder = client
         .get_object()
         .bucket(config.s3_bucket.clone())
-        .key(key);
+        .key(&key);
 
     if let Some(etag) = req.headers().get("If-None-Match") {
         req_builder = req_builder.if_none_match(etag.to_str().unwrap());
@@ -47,7 +47,10 @@ pub async fn s3(
                 match http.status().as_u16() {
                     // HTTP 304: not modified
                     304 => actix_web::HttpResponse::NotModified().body("Not modified"),
-                    404 => actix_web::HttpResponse::NotFound().body("Not found"),
+                    404 => {
+                        println!("Not found: {:?}", &key);
+                        actix_web::HttpResponse::NotFound().body("Not found")
+                    }
                     _ => {
                         println!("Error: {:?}", err);
                         actix_web::HttpResponse::NotFound().body("Not found")
