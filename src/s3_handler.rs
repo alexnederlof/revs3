@@ -1,9 +1,11 @@
 use crate::app_config::AppConfig;
 use actix_web::{
     http::header::{self, EntityTag},
-    web, HttpRequest, Responder,
+    web::{self, Bytes},
+    HttpRequest, Responder,
 };
 use aws_sdk_s3::error::SdkError;
+use futures::stream;
 
 pub async fn s3(
     req: HttpRequest,
@@ -31,7 +33,6 @@ pub async fn s3(
 
     match resp {
         Ok(resp) => {
-            let body = resp.body.collect().await.unwrap().into_bytes();
             let content_type = resp.content_type.unwrap();
             let mut builder = actix_web::HttpResponse::Ok();
             if let Some(mut etag) = resp.e_tag {
@@ -39,7 +40,20 @@ pub async fn s3(
                 builder.append_header(header::ETag(EntityTag::new_strong(etag)));
             }
             builder.content_type(content_type);
-            builder.body(body)
+
+            let body = resp.body;
+
+            /*
+              Using stream::unfold to convert the body from an async iterator to a stream that is
+              used by actix_web::HttpResponseBuilder::streaming. That way, we don't have to allocate
+              (a lot of) memory in this app to handle larger files.
+            */
+            builder.streaming(stream::unfold(body, |mut body| async {
+                body.next().await.map(|bytes| match bytes {
+                    Ok(bytes) => (Ok(Bytes::from(bytes)), body),
+                    Err(err) => (Err(err), body),
+                })
+            }))
         }
         Err(err) => match err {
             SdkError::ServiceError(err) => {

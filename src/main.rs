@@ -20,7 +20,7 @@ async fn main() -> std::io::Result<()> {
     let client = web::Data::new(aws_sdk_s3::Client::new(&aws_config));
     let config = web::Data::new(AppConfig::from_env());
     
-    print!("Starting server with config {:?}", config);
+    println!("Starting server with config {:?}", config);
 
     HttpServer::new(move || {
         App::new()
