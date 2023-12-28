@@ -3,7 +3,7 @@ name: Rust
 on:
   pull_request:
     # Sequence of patterns matched against refs/heads
-    branches:    
+    branches:
       - main
       - master
 
@@ -32,5 +32,8 @@ jobs:
 
       - name: Build
         run: cargo build
+
+      - uses: isbang/compose-action@v1.5.1
+
       - name: Run tests
         run: cargo test

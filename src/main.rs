@@ -1,8 +1,8 @@
 use actix_web::{web, App, HttpServer, Responder};
 use log::info;
 
-use env_logger::Env;
 use revs3::app_config::AppConfig;
+use revs3::logger;
 use revs3::s3_handler::s3;
 use std::env;
 
@@ -13,7 +13,7 @@ async fn health() -> impl Responder {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    logger::init_log();
 
     let mut aws_config = aws_config::load_from_env().await;
     if let Ok(url) = env::var("AWS_ENDPOINT_URL_S3") {

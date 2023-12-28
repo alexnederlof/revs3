@@ -35,4 +35,5 @@ services:
         aws --endpoint-url=http://localstack:4566 s3 cp /test_data/hello.js s3://web-bucket/reports/
         aws --endpoint-url=http://localstack:4566 s3 cp /test_data/index.css s3://web-bucket/reports/
         aws --endpoint-url=http://localstack:4566 s3 cp /test_data/index.html s3://web-bucket/reports/
+        aws --endpoint-url=http://localstack:4566 s3 cp /test_data/index.html s3://web-bucket/reports/sub/
       '
