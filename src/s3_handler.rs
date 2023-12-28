@@ -1,10 +1,16 @@
+use std::str::FromStr;
+
 use crate::app_config::AppConfig;
 use actix_web::{
-    http::header::{self, EntityTag},
+    http::header::{self, EntityTag, HttpDate},
     web::{self, Bytes},
     HttpRequest, Responder,
 };
 use aws_sdk_s3::error::SdkError;
+use aws_smithy_types_convert::date_time::DateTimeExt;
+use chrono::Utc;
+use log::{error, info};
+
 use futures::stream;
 
 pub async fn s3(
@@ -33,13 +39,35 @@ pub async fn s3(
 
     match resp {
         Ok(resp) => {
-            let content_type = resp.content_type.unwrap();
-            let mut builder = actix_web::HttpResponse::Ok();
-            if let Some(mut etag) = resp.e_tag {
-                etag = etag.trim_matches('"').to_string();
+            let mut builder: actix_web::HttpResponseBuilder = actix_web::HttpResponse::Ok();
+            builder.content_type(resp.content_type().unwrap());
+
+            for (header_name, header_value) in resp.headers().iter() {
+                if header_name == "Cache-Control"
+                    || header_name == "Expires"
+                    || header_name == "Last-Modified"
+                    || header_name == "ETag"
+                {
+                    builder.append_header((header_name, header_value.clone()));
+                }
+            }
+
+            if let Some(etag) = resp.e_tag() {
+                let etag = etag.trim_matches('"').to_string();
                 builder.append_header(header::ETag(EntityTag::new_strong(etag)));
             }
-            builder.content_type(content_type);
+            if let Some(expires) = resp.expires() {
+                let chrono_date_time: chrono::DateTime<Utc> = expires.to_chrono_utc().unwrap();
+
+                match HttpDate::from_str(chrono_date_time.to_rfc2822().as_str()) {
+                    Ok(http_date) => {
+                        builder.append_header(header::Expires(http_date));
+                    }
+                    Err(e) => {
+                        error!("Error parsing date: {:?}", e);
+                    }
+                }
+            }
 
             let body = resp.body;
 
@@ -62,17 +90,17 @@ pub async fn s3(
                     // HTTP 304: not modified
                     304 => actix_web::HttpResponse::NotModified().body("Not modified"),
                     404 => {
-                        println!("Not found: {:?}", &key);
+                        info!("Not found: {:?}", &key);
                         actix_web::HttpResponse::NotFound().body("Not found")
                     }
                     _ => {
-                        println!("Error: {:?}", err);
+                        error!("Error: {:?}", err);
                         actix_web::HttpResponse::NotFound().body("Not found")
                     }
                 }
             }
             _ => {
-                println!("Error: {:?}", err);
+                error!("Error: {:?}", err);
                 actix_web::HttpResponse::NotFound().body("Not found")
             }
         },

@@ -1,9 +1,10 @@
 use actix_web::{web, App, HttpServer, Responder};
+use log::info;
 
-use std::env;
-
+use env_logger::Env;
 use revs3::app_config::AppConfig;
 use revs3::s3_handler::s3;
+use std::env;
 
 async fn health() -> impl Responder {
     "S3 Reverse proxy OK"
@@ -12,6 +13,8 @@ async fn health() -> impl Responder {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
     let mut aws_config = aws_config::load_from_env().await;
     if let Ok(url) = env::var("AWS_ENDPOINT_URL_S3") {
         aws_config = aws_config.to_builder().endpoint_url(url).build();
@@ -19,8 +22,8 @@ async fn main() -> std::io::Result<()> {
     }
     let client = web::Data::new(aws_sdk_s3::Client::new(&aws_config));
     let config = web::Data::new(AppConfig::from_env());
-    
-    println!("Starting server with config {:?}", config);
+
+    info!("Starting server with config {:?}", config);
 
     HttpServer::new(move || {
         App::new()
