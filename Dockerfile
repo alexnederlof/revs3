@@ -1,5 +1,5 @@
 # Prepare cargo chef
-FROM --platform=$TARGETPLATFORM rust:1.74-bullseye AS chef
+FROM --platform=$TARGETPLATFORM rust:1.75-bullseye AS chef
 RUN cargo install cargo-chef 
 WORKDIR /app
 
